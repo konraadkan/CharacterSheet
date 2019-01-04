@@ -1,0 +1,20 @@
+1125, 195			<- Class/Level
+1517,260
+64 pt font
+
+Race
+1125, 307
+1517, 372
+
+
+subrace (need smaller font)
+1204,377
+1490,414
+
+
+D2D1_RECT_F StrengthBox = D2D1::RectF(168.0f, 641.0f, 306.0f, 755.0f);
+D2D1_RECT_F DexterityBox = D2D1::RectF(168.0f, 940.0f, 306.0f, 1054.0f);
+D2D1_RECT_F ConstitutionBox = D2D1::RectF(168.0f, 1237.0f, 306.0f, 1351.0f);
+D2D1_RECT_F IntelligenceBox = D2D1::RectF(168.0f, 1538.0f, 306.0f, 1652.0f);
+D2D1_RECT_F WisdomBox = D2D1::RectF(168.0f, 1837.0f, 306.0f, 1950.0f);
+D2D1_RECT_F CharismaBox = D2D1::RectF(168.0f, 2133.0f, 306.0f, 2247.0f);
