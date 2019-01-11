@@ -1,10 +1,12 @@
 #pragma once
+#include <windows.h>
 #include <vector>
 #include <string>
 #include "JobClass.h"
 #include "classlist.h"
 #include "skills.h"
 #include "Race.h"
+#include "TextDisplayBox.h"
 
 class Character
 {
@@ -26,10 +28,12 @@ public:
 	unsigned long GetLevels();
 	unsigned long GetLevel(CLASS jobclass);
 	void IncreaseLevel(CLASS jobclass, unsigned long Amount = 1);
+	void DecreaseLevel(CLASS jobclass, unsigned long Amount = 1);
 	Race* CharacterRace = NULL;
 	std::vector<Race*> Races;
 	std::vector<Subrace*> Subraces;
 	std::wstring Name;
+	std::wstring Player;
 	Character();
 	~Character();
 public:

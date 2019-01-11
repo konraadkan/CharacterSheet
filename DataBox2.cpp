@@ -23,7 +23,6 @@ DataBox2::~DataBox2()
 
 void DataBox2::Draw(Graphics* gfx, D2D1_COLOR_F color)
 {
-	if (output.empty()) return;
 	D2D1_MATRIX_3X2_F otransform;
 
 	if (bHighlight)
@@ -39,14 +38,19 @@ void DataBox2::Draw(Graphics* gfx, D2D1_COLOR_F color)
 	gfx->GetCompatibleTarget()->GetTransform(&otransform);
 	gfx->GetCompatibleTarget()->SetTransform(otransform * D2D1::Matrix3x2F::Scale(D2D1::SizeF(scale, scale), D2D1::Point2F(Area.left, Area.top)));
 	if (wrapper)
-		gfx->OutputText(wrapper->GetOutput().c_str(), trueArea, color, alignment, p_alignment);
-	else
+		wrapper->Draw(trueArea, gfx, color, alignment, p_alignment);		
+	else if (output.size())
 		gfx->OutputText(output.c_str(), trueArea, color, alignment, p_alignment);
 	gfx->GetCompatibleTarget()->SetTransform(otransform);
 	
 	if (!bHideBorder)
 	{
-		gfx->DrawRect(Area);
+		if (wrapper)
+		{
+			if (wrapper->bSelected) color = wrapper->SelectedColor;
+			else color = wrapper->DefaultColor;
+		}
+		gfx->DrawRect(Area, color);
 	}	
 }
 
@@ -62,4 +66,9 @@ bool DataBox2::PointInRect(D2D1_POINT_2F p)
 void DataBox2::Interact()
 {
 	if (wrapper) wrapper->Interact();
+}
+
+void DataBox2::OutsideBox(D2D1_POINT_2F p)
+{
+	if (wrapper) wrapper->OutsideBox(p, Area);
 }

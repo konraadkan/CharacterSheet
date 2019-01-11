@@ -14,8 +14,8 @@ protected:
 	CLASS ClassID = CLASS::Other;
 	unsigned long Level = 1;
 	unsigned long HitDice = 1;
-	std::wstring ClassName;	
-	ABILITYSCORES PrimaryAbility;	
+	std::wstring ClassName;
+	ABILITYSCORES PrimaryAbility;
 	ABILITYSCORES SecondaryAbility;
 	ABILITYSCORES DumpAbility;
 	char* trim(char* buffer);
@@ -39,8 +39,8 @@ public:
 	void UpdateAbilityScores(ABILITIES& abscores);
 	void FillFeatures(const wchar_t* Path);
 	void FillFeature(const char* Buffer);
-	void Interact() override { }
-	std::wstring GetOutput() override { return m_GetClassName(); }
+	void Interact() override { bSelected = true; }
+	std::wstring GetOutput() override { return std::to_wstring(GetLevel()) + L" " + m_GetClassName(); }
 	unsigned long GetAbilityScore(ABILITYSCORES Abi) override { return 0; }
 	long GetAbilityModifier(ABILITYSCORES Abi) override { return 0; }
 public:

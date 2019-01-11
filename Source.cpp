@@ -19,6 +19,10 @@ LRESULT CALLBACK wndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		Controller::Cleanup();
 		PostQuitMessage(0);
 	}
+	else
+	{
+		Controller::Update(msg, wParam, lParam);
+	}
 
 	return DefWindowProc(hWnd, msg, wParam, lParam);
 }

@@ -5,7 +5,7 @@
 
 class DataBox2
 {
-private:
+private:	
 	bool bHideBorder = false;
 	bool bHighlight = false;
 	D2D1_RECT_F Area;
@@ -21,6 +21,8 @@ public:
 	void Draw(Graphics* gfx = NULL, D2D1_COLOR_F color = D2D1::ColorF(0.0f, 0.0f, 0.0f));
 	void Toggle() { bHighlight ^= true; }
 	void Interact();
+	void OutsideBox(D2D1_POINT_2F p);
 	bool PointInRect(D2D1_POINT_2F p);
+	void SetArea(D2D1_RECT_F dest) { Area.left = dest.left; Area.top = dest.top; Area.right = dest.right; Area.bottom = dest.bottom; }
 	Wrapper* wrapper = NULL;
 };

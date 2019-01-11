@@ -342,6 +342,17 @@ char* Character::trim(const char* buffer)
 	return newbuffer;
 }
 
+void Character::DecreaseLevel(CLASS jobclass, unsigned long Amount)
+{
+	if (Classes.empty()) return;
+
+	for (size_t i = 0; i < Classes.size(); i++)
+	{
+		if (Classes[i]->GetClassID() == jobclass)
+			Classes.erase(Classes.begin() + i);
+	}
+}
+
 void Character::IncreaseLevel(CLASS jobclass, unsigned long Amount)
 {
 	bool newcharacter = Classes.empty();

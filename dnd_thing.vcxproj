@@ -157,8 +157,10 @@
     <ClInclude Include="Fighter.h" />
     <ClInclude Include="graphics.h" />
     <ClInclude Include="hptimer.h" />
+    <ClInclude Include="IncreaseDecrease.h" />
     <ClInclude Include="InitialStage.h" />
     <ClInclude Include="JobClass.h" />
+    <ClInclude Include="keyboard.h" />
     <ClInclude Include="Level.h" />
     <ClInclude Include="Monk.h" />
     <ClInclude Include="Paladin.h" />
@@ -171,6 +173,7 @@
     <ClInclude Include="Sprite.h" />
     <ClInclude Include="Stage.h" />
     <ClInclude Include="Subraces.h" />
+    <ClInclude Include="TextDisplayBox.h" />
     <ClInclude Include="Warlock.h" />
     <ClInclude Include="Wizard.h" />
     <ClInclude Include="wrapper.h" />

@@ -4,6 +4,7 @@ bool Controller::Run = true;
 bool Controller::Loading = false;
 HPTimer* Controller::Timer = NULL;
 HWND Controller::hWnd = NULL;
+MSG Controller::msg = {};
 Stage* Controller::CurrentStage = NULL;
 std::vector<Character*> Controller::Characters;
 D2D1_POINT_2F Controller::p = {};
@@ -11,7 +12,7 @@ D2D1_POINT_2F Controller::p = {};
 
 void Controller::Init(HWND hwnd)
 {
-	hWnd = hwnd;
+	msg.hwnd = hWnd = hwnd;
 	Timer = new HPTimer();
 	Run = true;
 	Loading = false;
@@ -27,6 +28,21 @@ void Controller::Render()
 void Controller::Update()
 {
 	if (CurrentStage) CurrentStage->Update((float)Timer->GetTimeDelta());
+	EmptyMessages();
+}
+
+void Controller::EmptyMessages()
+{
+	msg.message = NULL;
+	msg.wParam = NULL;
+	msg.lParam = NULL;
+}
+
+void Controller::Update(UINT message, WPARAM wParam, LPARAM lParam)
+{
+	msg.message = message;
+	msg.wParam = wParam;
+	msg.lParam = lParam;
 }
 
 void Controller::UpdateTimer()

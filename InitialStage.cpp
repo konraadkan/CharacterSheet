@@ -5,6 +5,7 @@ InitialStage::InitialStage(Graphics* graphics, D2D1_POINT_2F* P)
 	Init(graphics);
 	CharacterSheet = new Sprite(L"Character_Sheet.png", graphics);
 	p = P;
+	ClassOptions = new ClassContainer();
 }
 
 InitialStage::~InitialStage()
@@ -27,6 +28,12 @@ void InitialStage::Load(std::vector<Character*>& characters)
 	SelectedCharacter->SetSubrace(L"High Elf");
 	SelectedCharacter->AbilityScores.SetRace(SelectedCharacter->CharacterRace);
 	SelectedCharacter->AbilityScores.SetSubRace(SelectedCharacter->CharacterRace->SelectedSubRace);
+	if (CharacterNameBox) delete CharacterNameBox;
+	CharacterNameBox = new TextHoldingBox(&SelectedCharacter->Name);
+	CharacterNameBox->SelectedColor = D2D1::ColorF(0.0f, 0.0f, 1.0f);
+	if (PlayerNameBox) delete PlayerNameBox;
+	PlayerNameBox = new TextHoldingBox(&SelectedCharacter->Player);
+	PlayerNameBox->SelectedColor = D2D1::ColorF(0.0f, 0.0f, 1.0f);
 }
 
 void InitialStage::Render()
@@ -41,12 +48,14 @@ void InitialStage::Render()
 	gfx->GetCompatibleTarget()->GetBitmap(&tbitmap);
 	if (tbitmap)
 	{//D2D1::SizeF(2550.0f,3300.0f) is the size of the image being used as the backdrop
-		gfx->GetRenderTarget()->SetTransform(D2D1::Matrix3x2F::Scale(D2D1::SizeF(scale, scale), D2D1::Point2F(1920.0f *0.5f, 1080.0f *0.5f)) * D2D1::Matrix3x2F::Translation(Translation));
+		//gfx->GetRenderTarget()->SetTransform(D2D1::Matrix3x2F::Scale(D2D1::SizeF(scale, scale), D2D1::Point2F(1920.0f * 0.5f, 0.0f)) * D2D1::Matrix3x2F::Translation(Translation));
+		gfx->GetRenderTarget()->SetTransform(D2D1::Matrix3x2F::Scale(D2D1::SizeF(scale, scale), pCenter) * D2D1::Matrix3x2F::Translation(Translation));
 		D2D1::Matrix3x2F transform;
 
 		gfx->GetRenderTarget()->GetTransform(&transform);
 		transform.Invert();
 		pTransformed = transform.TransformPoint(*p);
+		pCenter = transform.TransformPoint(D2D1::Point2F(Controller::GetWindowSize().right * 0.5f, Controller::GetWindowSize().bottom * 0.5f));
 
 		gfx->GetRenderTarget()->DrawBitmap(tbitmap, D2D1::RectF(0.0f, 0.0f, 2550.0f, 3300.0f), 1.0f, D2D1_BITMAP_INTERPOLATION_MODE::D2D1_BITMAP_INTERPOLATION_MODE_LINEAR, D2D1::RectF(0.0f, 0.0f, 2550.0f, 3300.0f));
 		gfx->GetRenderTarget()->SetTransform(D2D1::Matrix3x2F::Identity());
@@ -60,6 +69,12 @@ void InitialStage::Unload()
 	CharacterSheet = NULL;
 	if (Reroll) delete Reroll;
 	Reroll = NULL;
+	if (CharacterNameBox) delete CharacterNameBox;
+	CharacterNameBox = NULL;
+	if (PlayerNameBox) delete PlayerNameBox;
+	PlayerNameBox = NULL;
+	if (ClassOptions) delete ClassOptions;
+	ClassOptions = NULL;
 }
 
 void InitialStage::Update(float delta)
@@ -69,10 +84,27 @@ void InitialStage::Update(float delta)
 	{
 		if (bButtonUp)
 		{
-			for (auto& c : DataBoxes)
+			//for (auto& c : DataBoxes)
+			for(size_t i = 0; i < DataBoxes.size(); i++)
 			{
-				if (c.PointInRect(pTransformed))
-					c.Interact();
+				if (DataBoxes[i].PointInRect(pTransformed))
+					DataBoxes[i].Interact();
+				else
+				{
+					DataBoxes[i].OutsideBox(pTransformed);
+					if (DataBoxes[i].wrapper)
+					{
+						if (SelectedCharacter)
+						{
+							if (DataBoxes[i].wrapper->IncreaseFlag || DataBoxes[i].wrapper->DecreaseFlag)
+							{
+								SelectedCharacter->IncreaseLevel(ClassOptions->ClassID[i]);
+								DataBoxes[i].wrapper->IncreaseFlag = false;
+								DataBoxes[i].wrapper->DecreaseFlag = false;
+							}
+						}
+					}
+				}
 				if (Reroll->ScoresGenerated)
 				{
 					Reroll->ScoresGenerated = false;
@@ -86,11 +118,20 @@ void InitialStage::Update(float delta)
 	}
 	else bButtonUp = true;
 	if (GetKeyState(VK_ADD) < 0) scale += ScalingSpeed * delta;
-	if (GetKeyState(VK_SUBTRACT) < 0) scale = (scale - ScalingSpeed * delta <= 0.0f) ? ScalingSpeed * delta : scale - ScalingSpeed * delta;
+	if (GetKeyState(VK_SUBTRACT) < 0) scale = (scale - ScalingSpeed * delta <= 0.55f) ? 0.55f : scale - ScalingSpeed * delta;
 	if (GetKeyState(VK_LEFT) < 0) Translation.width -= delta * TranslationSpeed;
 	if (GetKeyState(VK_RIGHT) < 0) Translation.width += delta * TranslationSpeed;
 	if (GetKeyState(VK_UP) < 0) Translation.height -= delta * TranslationSpeed;
 	if (GetKeyState(VK_DOWN) < 0) Translation.height += delta * TranslationSpeed;
+
+	if (!CharacterNameBox->bSelected && !PlayerNameBox->bSelected)
+	{
+		if (GetKeyState('A') < 0) Translation.width += delta * TranslationSpeed;
+		if (GetKeyState('D') < 0) Translation.width -= delta * TranslationSpeed;
+		if (GetKeyState('W') < 0) Translation.height += delta * TranslationSpeed;
+		if (GetKeyState('S') < 0) Translation.height -= delta * TranslationSpeed;
+	}
+
 	if (GetKeyState(VK_RBUTTON) < 0)
 	{
 		if (Characters->size())
@@ -99,12 +140,59 @@ void InitialStage::Update(float delta)
 			{
 				if (SelectedCharacter->Classes.empty())
 				{
-					SelectedCharacter->Classes.push_back(new Barbarian(SelectedCharacter->AbilityScores));
+					SelectedCharacter->Classes.push_back(new Barbarian(SelectedCharacter->AbilityScores, 5));
 					SelectedCharacter->GenerateAbilityScores(SelectedCharacter->Classes.front()->GetClassID());
 					SelectedCharacter->Classes.front()->UpdateAbilityScores(SelectedCharacter->AbilityScores);
 					UpdateDataBoxes();
 				}
 			}
+		}
+	}
+	/******* changed to use windows WM_CHAR messages
+	if (CharacterNameBox->bSelected)
+	{//can stand to be tweaked a bit in the future (possibly add 2 second rule to the keyboard class
+		std::vector<wchar_t> keys = GetKeysPressed();
+		//ctime += delta;
+		if (keys.size())
+		{
+			CharacterNameBox->AppendKeys(keys);
+			if (keys.size() == 1)
+			{
+				//if (ctime - ptime > 0.25)
+				//{
+				//	ptime = ctime;
+					if (keys.front() == (wchar_t)VK_BACK)
+						CharacterNameBox->Backspace();
+				//}
+			}
+		}
+	}*/
+	if (CharacterNameBox->bSelected)
+	{
+		if (Controller::msg.message == WM_CHAR)
+		{
+			CharacterNameBox->AppendKey((wchar_t)Controller::msg.wParam);
+		}
+	}
+	/******* changed to use windows WM_CHAR messages
+	if (PlayerNameBox->bSelected)
+	{
+		std::vector<wchar_t> keys = GetKeysPressed();
+		if (keys.size())
+		{
+			PlayerNameBox->AppendKeys(keys);
+			if (keys.size() == 1)
+			{
+				if (keys.front() == (wchar_t)VK_BACK)
+					PlayerNameBox->Backspace();
+			}
+		}
+	}*/
+	if (PlayerNameBox->bSelected)
+	{
+		if (Controller::msg.message == WM_CHAR)
+		{
+			PlayerNameBox->AppendKey((wchar_t)Controller::msg.wParam);
 		}
 	}
 }
@@ -158,6 +246,12 @@ void InitialStage::ShowDropDown(D2D1_RECT_F area)
 			Reroll = new RerollInteraction(&SelectedCharacter->AbilityScores);
 			SelectedCharacter->AbilityScores.SetRace(SelectedCharacter->CharacterRace);
 			SelectedCharacter->AbilityScores.SetSubRace(SelectedCharacter->CharacterRace->SelectedSubRace);
+			if (CharacterNameBox) delete CharacterNameBox;
+			CharacterNameBox = new TextHoldingBox(&SelectedCharacter->Name);
+			CharacterNameBox->SelectedColor = D2D1::ColorF(0.0f, 0.0f, 1.0f);
+			if (PlayerNameBox) delete PlayerNameBox;
+			PlayerNameBox = new TextHoldingBox(&SelectedCharacter->Player);
+			PlayerNameBox->SelectedColor = D2D1::ColorF(0.0f, 0.0f, 1.0f);
 		}
 	}
 }
@@ -170,16 +264,16 @@ void InitialStage::UpdateDataBoxes()
 		std::vector<DataBox2> e;
 		std::swap(DataBoxes, e);
 	}
-	if (SelectedCharacter->Classes.size())
-	{
-		DataBoxes.push_back(DataBox2(D2D1::RectF(1125.0f, 195.0f, 1517.0f, 263.0f), L"ClassLevelBox", SelectedCharacter->Classes.front()->m_GetClassName().c_str(), SelectedCharacter->Classes.front()));
-	}
+	
 	if (SelectedCharacter->CharacterRace)
 	{
 		DataBoxes.push_back(DataBox2(D2D1::RectF(1125.0f, 307.0f, 1517.0f, 372.0f), L"RaceBox", SelectedCharacter->CharacterRace->m_GetClassName().c_str(), SelectedCharacter->CharacterRace));
 		if (SelectedCharacter->CharacterRace->SelectedSubRace)
 			DataBoxes.push_back(DataBox2(D2D1::RectF(1204.0f, 375.0f, 1517.0f, 414.0f), L"SubRaceBox", SelectedCharacter->CharacterRace->SelectedSubRace->m_GetClassName().c_str(), SelectedCharacter->CharacterRace->SelectedSubRace, 0.5f, false, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_NEAR));
 	}
+
+	DataBoxes.push_back(DataBox2(D2D1::RectF(194.0f, 250.0f, 1055.0f, 350.0f), L"CharacterNameBox", L"Character Box Error", CharacterNameBox, 1.25f));
+	DataBoxes.push_back(DataBox2(D2D1::RectF(1970.0f, 195.0f, 2372.0f, 263.0f), L"PlayerNameBox", L"Player Box Error", PlayerNameBox, 0.75f, false, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_FAR));
 
 	DataBoxes.push_back(DataBox2(D2D1::RectF(168.0f, 521.0f, 306.0f, 585.0f), L"Reroll", L"Reroll", Reroll, 0.66f, false, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER));
 	
@@ -200,12 +294,15 @@ void InitialStage::UpdateDataBoxes()
 
 	DataBoxes.push_back(DataBox2(D2D1::RectF(168.0f, 2133.0f, 306.0f, 2247.0f), L"CharismaBox", SelectedCharacter->GetAbilityScoreW(ABILITYSCORES::Charisma).c_str(), &SelectedCharacter->AbilityScores.Charisma, 1.0f, false, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER));
 	DataBoxes.push_back(DataBox2(D2D1::RectF(180.0f, 2273.0f, 290.0f, 2323.0f), L"CharismaModBox", SelectedCharacter->GetAbilityModifierW(ABILITYSCORES::Charisma).c_str(), &SelectedCharacter->AbilityScores.ChaMod, 0.75f, true, DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT_CENTER));
-
-	//example using Interact
-	/*
-	Wrapper* w = SelectedCharacter->CharacterRace;
-	DataBoxes.front().w = w;
-	DataBoxes.front().w->Interact();*/
+	
+	if (SelectedCharacter->Classes.size())
+	{
+		DataBoxes.push_back(DataBox2(D2D1::RectF(1125.0f, 195.0f, 1517.0f, 263.0f), L"ClassLevelBox", SelectedCharacter->Classes.front()->m_GetClassName().c_str(), SelectedCharacter->Classes.front()));
+	}
+	else
+	{
+		DataBoxes.push_back(DataBox2(D2D1::RectF(1125.0f, 195.0f, 1517.0f, 263.0f), L"ClassLevelBox", L"Choose Class", ClassOptions, 0.8f, false, DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_FAR));
+	}
 }
 
 void InitialStage::BuildForm()

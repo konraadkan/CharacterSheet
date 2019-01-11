@@ -3,6 +3,8 @@
 #include "sprite.h"
 #include "databox2.h"
 #include "RerollInteraction.h"
+#include "classlist.h"
+#include "controller.h"
 
 class InitialStage : public Stage
 {
@@ -15,6 +17,10 @@ private:
 	void BuildForm();
 	bool bShowDropDown = false;
 	bool bButtonUp = true;
+	bool keydown = false;
+	bool twoseconds = false;
+	double ctime = 0.0;
+	double ptime = 0.0;
 	Sprite* CharacterSheet = NULL;
 	float scale = 1.0f;
 	float ScalingSpeed = 0.33f;
@@ -23,7 +29,11 @@ private:
 	void UpdateDataBoxes();
 	D2D1_POINT_2F* p = NULL;
 	D2D1_POINT_2F pTransformed = {};
+	D2D1_POINT_2F pCenter = D2D1::Point2F(Controller::GetWindowSize().right * 0.5f, Controller::GetWindowSize().bottom * 0.5f);
 	RerollInteraction* Reroll = NULL;
+	TextHoldingBox* CharacterNameBox = NULL;
+	TextHoldingBox* PlayerNameBox = NULL;
+	ClassContainer* ClassOptions = NULL;
 public:
 	InitialStage(Graphics* graphics = NULL, D2D1_POINT_2F* P = NULL);
 	~InitialStage();
