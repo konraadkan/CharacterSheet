@@ -9,13 +9,13 @@ Graphics::Graphics()
 
 Graphics::~Graphics()
 {
-	if (m_Factory) m_Factory->Release();
-	if (m_RenderTarget) m_RenderTarget->Release();
-	if (m_WriteFactory) m_WriteFactory->Release();
-	if (m_WriteFormat) m_WriteFormat->Release();
-	if (m_Brush) m_Brush->Release();
-	if (m_WriteFormatSmall) m_WriteFormatSmall->Release();
-	if (pCompatibleTarget) pCompatibleTarget->Release();
+	SafeRelease(&m_Factory);
+	SafeRelease(&m_RenderTarget);
+	SafeRelease(&m_WriteFactory);
+	SafeRelease(&m_WriteFormat);
+	SafeRelease(&m_Brush);
+	SafeRelease(&m_WriteFormatSmall);
+	SafeRelease(&pCompatibleTarget);
 }
 
 bool Graphics::Init(HWND hWnd)
@@ -41,7 +41,7 @@ bool Graphics::Init(HWND hWnd)
 	result = m_RenderTarget->CreateSolidColorBrush(D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f), &m_Brush);
 	if (result != S_OK) return false;
 
-	result = m_RenderTarget->CreateCompatibleRenderTarget(D2D1::SizeF(2550.0f,3300.0f), &pCompatibleTarget);
+	result = m_RenderTarget->CreateCompatibleRenderTarget(D2D1::SizeF(2550.0f, 3300.0f), &pCompatibleTarget);
 	if (result != S_OK) return false;
 	return true;
 }
@@ -79,6 +79,24 @@ bool Graphics::DrawLine(D2D1_POINT_2F p1, D2D1_POINT_2F p2, D2D1_COLOR_F color, 
 	return true;
 }
 
+bool Graphics::DrawRoundedRect(D2D1_RECT_F area, D2D1_COLOR_F color, float radiusX, float radiusY, float thickness)
+{
+	if (!m_Brush) return false;
+	m_Brush->SetColor(color);
+	//m_RenderTarget->DrawRoundedRectangle(D2D1::RoundedRect(area, radiusX, radiusY), m_Brush, thickness);
+	pCompatibleTarget->DrawRoundedRectangle(D2D1::RoundedRect(area, radiusX, radiusY), m_Brush, thickness);
+	return true;
+}
+
+bool Graphics::FillRoundedRect(D2D1_RECT_F area, D2D1_COLOR_F color, float radiusX, float radiusY)
+{
+	if (!m_Brush) return false;
+	m_Brush->SetColor(color);
+	//m_RenderTarget->FillRoundedRectangle(D2D1::RoundedRect(area, radiusX, radiusY), m_Brush);
+	pCompatibleTarget->FillRoundedRectangle(D2D1::RoundedRect(area, radiusX, radiusY), m_Brush);
+	return true;
+}
+
 bool Graphics::DrawRect(D2D1_RECT_F area, D2D1_COLOR_F color, float thickness)
 {
 	if (!m_Brush) return false;
@@ -98,7 +116,52 @@ bool Graphics::FillRect(D2D1_RECT_F area, D2D1_COLOR_F color)
 	return true;
 }
 
-bool Graphics::OutputText(const wchar_t* text, D2D1_RECT_F targetArea, D2D1_COLOR_F color, DWRITE_TEXT_ALIGNMENT alignment, DWRITE_PARAGRAPH_ALIGNMENT p_alignment)
+bool Graphics::OutputText(const wchar_t* text, D2D1_RECT_F targetArea, D2D1_COLOR_F color, DWRITE_TEXT_ALIGNMENT alignment, DWRITE_PARAGRAPH_ALIGNMENT p_alignment, bool useRenderTarget)
+{
+	/* original version in case something goes wrong while trying to make scaling version**
+	if (!m_Brush) return false;
+	m_Brush->SetColor(color);
+
+	DWRITE_PARAGRAPH_ALIGNMENT p = m_WriteFormat->GetParagraphAlignment();
+	m_WriteFormat->SetParagraphAlignment(p_alignment);
+	m_WriteFormat->SetTextAlignment(alignment);
+
+	//m_RenderTarget->DrawTextA(text, lstrlenW(text), m_WriteFormat, targetArea, m_Brush, D2D1_DRAW_TEXT_OPTIONS_NONE, DWRITE_MEASURING_MODE_NATURAL);
+	pCompatibleTarget->DrawTextA(text, lstrlenW(text), m_WriteFormat, targetArea, m_Brush, D2D1_DRAW_TEXT_OPTIONS_NONE, DWRITE_MEASURING_MODE_NATURAL);
+
+	m_WriteFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
+	m_WriteFormat->SetParagraphAlignment(p);
+	return true;
+	*/
+	if (!m_Brush) return false;
+	m_Brush->SetColor(color);
+
+	DWRITE_PARAGRAPH_ALIGNMENT p = m_WriteFormat->GetParagraphAlignment();
+	m_WriteFormat->SetParagraphAlignment(p_alignment);
+	m_WriteFormat->SetTextAlignment(alignment);
+
+	float temp = GetOutputTextWidth(text, D2D1::SizeF((targetArea.right - targetArea.left) * 2.5f, targetArea.bottom - targetArea.top));
+	if (temp <= (targetArea.right - targetArea.left))
+	{
+		if(temp >= 0.0f) useRenderTarget ? m_RenderTarget->DrawTextA(text, lstrlenW(text), m_WriteFormat, targetArea, m_Brush, D2D1_DRAW_TEXT_OPTIONS_NONE, DWRITE_MEASURING_MODE_NATURAL) : pCompatibleTarget->DrawTextA(text, lstrlenW(text), m_WriteFormat, targetArea, m_Brush, D2D1_DRAW_TEXT_OPTIONS_NONE, DWRITE_MEASURING_MODE_NATURAL);
+	}
+	else
+	{
+		float scale = (targetArea.right - targetArea.left) / temp;
+		D2D1::Matrix3x2F oMatrix = D2D1::Matrix3x2F::Identity();
+		useRenderTarget ? m_RenderTarget->GetTransform(&oMatrix) : pCompatibleTarget->GetTransform(&oMatrix);
+		D2D1_RECT_F trect = D2D1::RectF(targetArea.left, targetArea.top, targetArea.left + temp, targetArea.bottom);
+		useRenderTarget ? m_RenderTarget->SetTransform(oMatrix * D2D1::Matrix3x2F::Scale(D2D1::SizeF(scale, scale), D2D1::Point2F(targetArea.left, (targetArea.bottom + targetArea.top) * 0.5f))) : pCompatibleTarget->SetTransform(oMatrix * D2D1::Matrix3x2F::Scale(D2D1::SizeF(scale, scale), D2D1::Point2F(targetArea.left, (targetArea.bottom + targetArea.top) * 0.5f)));
+		OutputText(text, trect, color, alignment, p_alignment, useRenderTarget);
+		useRenderTarget ? m_RenderTarget->SetTransform(oMatrix) : pCompatibleTarget->SetTransform(oMatrix);
+	}
+
+	m_WriteFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
+	m_WriteFormat->SetParagraphAlignment(p);
+	return true;
+}
+
+bool Graphics::OutputTextRenderTarget(const wchar_t* text, D2D1_RECT_F targetArea, D2D1_COLOR_F color, DWRITE_TEXT_ALIGNMENT alignment, DWRITE_PARAGRAPH_ALIGNMENT p_alignment)
 {
 	if (!m_Brush) return false;
 	m_Brush->SetColor(color);
@@ -115,25 +178,9 @@ bool Graphics::OutputText(const wchar_t* text, D2D1_RECT_F targetArea, D2D1_COLO
 	return true;
 }
 
-bool Graphics::OutputTextRenderTarget(const wchar_t* text, D2D1_RECT_F targetArea, D2D1_COLOR_F color, DWRITE_TEXT_ALIGNMENT alignment, DWRITE_PARAGRAPH_ALIGNMENT p_alignment)
+bool Graphics::OutputTextSmall(const wchar_t* text, D2D1_RECT_F targetArea, D2D1_COLOR_F color, DWRITE_TEXT_ALIGNMENT alignment, DWRITE_PARAGRAPH_ALIGNMENT p_alignment, bool useRenderTarget)
 {
-	if (!m_Brush) return false;
-	m_Brush->SetColor(color);
-
-	DWRITE_PARAGRAPH_ALIGNMENT p = m_WriteFormat->GetParagraphAlignment();
-	m_WriteFormat->SetParagraphAlignment(p_alignment);
-	m_WriteFormat->SetTextAlignment(alignment);
-
-	m_RenderTarget->DrawTextA(text, lstrlenW(text), m_WriteFormat, targetArea, m_Brush, D2D1_DRAW_TEXT_OPTIONS_NONE, DWRITE_MEASURING_MODE_NATURAL);
-	//pCompatibleTarget->DrawTextA(text, lstrlenW(text), m_WriteFormat, targetArea, m_Brush, D2D1_DRAW_TEXT_OPTIONS_NONE, DWRITE_MEASURING_MODE_NATURAL);
-
-	m_WriteFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
-	m_WriteFormat->SetParagraphAlignment(p);
-	return true;
-}
-
-bool Graphics::OutputTextSmall(const wchar_t* text, D2D1_RECT_F targetArea, D2D1_COLOR_F color, DWRITE_TEXT_ALIGNMENT alignment, DWRITE_PARAGRAPH_ALIGNMENT p_alignment)
-{
+	/*
 	if (!m_Brush) return false;
 	m_Brush->SetColor(color);
 
@@ -147,4 +194,74 @@ bool Graphics::OutputTextSmall(const wchar_t* text, D2D1_RECT_F targetArea, D2D1
 	m_WriteFormatSmall->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
 	m_WriteFormatSmall->SetParagraphAlignment(p);
 	return true;
+	*/
+	if (!m_Brush) return false;
+	m_Brush->SetColor(color);
+
+	DWRITE_PARAGRAPH_ALIGNMENT p = m_WriteFormat->GetParagraphAlignment();
+	m_WriteFormatSmall->SetParagraphAlignment(p_alignment);
+	m_WriteFormatSmall->SetTextAlignment(alignment);
+
+	float temp = GetOutputTextWidth(text, D2D1::SizeF((targetArea.right - targetArea.left) * 2.5f, targetArea.bottom - targetArea.top), true);
+	if (temp <= (targetArea.right - targetArea.left))
+	{
+		if (temp >= 0.0f) useRenderTarget ? m_RenderTarget->DrawTextA(text, lstrlenW(text), m_WriteFormatSmall, targetArea, m_Brush, D2D1_DRAW_TEXT_OPTIONS_NONE, DWRITE_MEASURING_MODE_NATURAL) : pCompatibleTarget->DrawTextA(text, lstrlenW(text), m_WriteFormatSmall, targetArea, m_Brush, D2D1_DRAW_TEXT_OPTIONS_NONE, DWRITE_MEASURING_MODE_NATURAL);
+	}
+	else
+	{
+		float scale = (targetArea.right - targetArea.left) / temp;
+		D2D1::Matrix3x2F oMatrix = D2D1::Matrix3x2F::Identity();
+		useRenderTarget ? m_RenderTarget->GetTransform(&oMatrix) : pCompatibleTarget->GetTransform(&oMatrix);
+		D2D1_RECT_F trect = D2D1::RectF(targetArea.left, targetArea.top, targetArea.left + temp, targetArea.bottom);
+		useRenderTarget ? m_RenderTarget->SetTransform(oMatrix * D2D1::Matrix3x2F::Scale(D2D1::SizeF(scale, scale), D2D1::Point2F(targetArea.left, (targetArea.bottom + targetArea.top) * 0.5f))) : pCompatibleTarget->SetTransform(oMatrix * D2D1::Matrix3x2F::Scale(D2D1::SizeF(scale, scale), D2D1::Point2F(targetArea.left, (targetArea.bottom + targetArea.top) * 0.5f)));
+		OutputText(text, trect, color, alignment, p_alignment, useRenderTarget);
+		useRenderTarget ? m_RenderTarget->SetTransform(oMatrix) : pCompatibleTarget->SetTransform(oMatrix);
+	}
+
+	m_WriteFormatSmall->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
+	m_WriteFormatSmall->SetParagraphAlignment(p);
+	return true;
+}
+
+float Graphics::GetOutputTextWidth(const wchar_t* string, D2D1_SIZE_F maxsize, bool bFormatSmall)
+{
+	IDWriteTextLayout* textlayout = NULL;
+	if (!SUCCEEDED(m_WriteFactory->CreateTextLayout(string, lstrlenW(string), (bFormatSmall ? m_WriteFormatSmall : m_WriteFormat), maxsize.width, maxsize.height, &textlayout))) return -1;
+	DWRITE_TEXT_METRICS metrics = {};
+	float result = 0.0f;
+	if (SUCCEEDED(textlayout->GetMetrics(&metrics)))
+	{
+		result = metrics.widthIncludingTrailingWhitespace;
+	}
+	SafeRelease(&textlayout);
+	return result;
+}
+
+float Graphics::GetOutputTextHeight(const wchar_t* string, D2D1_SIZE_F maxsize, bool bFormatSmall)
+{
+	IDWriteTextLayout* textlayout = NULL;
+	if (!SUCCEEDED(m_WriteFactory->CreateTextLayout(string, lstrlenW(string), (bFormatSmall ? m_WriteFormatSmall : m_WriteFormat), maxsize.width, maxsize.height, &textlayout))) return -1;
+	DWRITE_TEXT_METRICS metrics = {};
+	float result = 0.0f;
+	if (SUCCEEDED(textlayout->GetMetrics(&metrics)))
+	{
+		result = metrics.height;
+	}
+	SafeRelease(&textlayout);
+	return result;
+}
+
+float Graphics::GetOutputTextWidthSmall(const wchar_t* string, D2D1_SIZE_F maxsize)
+{
+	//replaced with adding a bool to GetOutputTextWidth() ignore
+	IDWriteTextLayout* textlayout = NULL;
+	if (!SUCCEEDED(m_WriteFactory->CreateTextLayout(string, lstrlenW(string), m_WriteFormatSmall, maxsize.width, maxsize.height, &textlayout))) return -1;
+	DWRITE_TEXT_METRICS metrics = {};
+	float result = 0.0f;
+	if (SUCCEEDED(textlayout->GetMetrics(&metrics)))
+	{
+		result = metrics.widthIncludingTrailingWhitespace;
+	}
+	SafeRelease(&textlayout);
+	return result;
 }

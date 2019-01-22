@@ -10,6 +10,15 @@
 class Graphics
 {
 private:
+	template<class T> void SafeRelease(T** ppT)
+	{
+		if (*ppT)
+		{
+			(*ppT)->Release();
+			*ppT = NULL;
+		}
+	}
+private:
 	ID2D1Factory * m_Factory = NULL;
 	ID2D1HwndRenderTarget* m_RenderTarget = NULL;
 	ID2D1SolidColorBrush* m_Brush = NULL;
@@ -31,11 +40,13 @@ public:
 
 	bool DrawLine(D2D1_POINT_2F p1, D2D1_POINT_2F p2, D2D1_COLOR_F color = D2D1::ColorF(0.0f, 0.0f, 0.0f), float thickness = 1.0f);
 	bool DrawRect(D2D1_RECT_F area, D2D1_COLOR_F color = D2D1::ColorF(0.0f, 0.0f, 0.0f), float thickness = 1.0f);
+	bool DrawRoundedRect(D2D1_RECT_F area, D2D1_COLOR_F color = D2D1::ColorF(0.0f, 0.0f, 0.0f), float radiusX = 1.0f, float radiusY = 1.0f, float thickness = 1.0f);
 	bool FillRect(D2D1_RECT_F area, D2D1_COLOR_F color = D2D1::ColorF(0.0f, 0.0f, 0.0f));
+	bool FillRoundedRect(D2D1_RECT_F area, D2D1_COLOR_F = D2D1::ColorF(0.0f, 0.0f, 0.0f), float radiusX = 1.0f, float radiusY = 1.0f);
 
-	bool OutputText(const wchar_t* text, D2D1_RECT_F targetArea, D2D1_COLOR_F color = D2D1::ColorF(0.0f, 0.0f, 0.0f), DWRITE_TEXT_ALIGNMENT alignment = DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT p_alignment = DWRITE_PARAGRAPH_ALIGNMENT::DWRITE_PARAGRAPH_ALIGNMENT_NEAR);
+	bool OutputText(const wchar_t* text, D2D1_RECT_F targetArea, D2D1_COLOR_F color = D2D1::ColorF(0.0f, 0.0f, 0.0f), DWRITE_TEXT_ALIGNMENT alignment = DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT p_alignment = DWRITE_PARAGRAPH_ALIGNMENT::DWRITE_PARAGRAPH_ALIGNMENT_NEAR, bool useRenderTarget = false);
 	bool OutputTextRenderTarget(const wchar_t* text, D2D1_RECT_F targetArea, D2D1_COLOR_F color = D2D1::ColorF(0.0f, 0.0f, 0.0f), DWRITE_TEXT_ALIGNMENT alignment = DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT p_alignment = DWRITE_PARAGRAPH_ALIGNMENT::DWRITE_PARAGRAPH_ALIGNMENT_NEAR);
-	bool OutputTextSmall(const wchar_t* text, D2D1_RECT_F targetArea, D2D1_COLOR_F color = D2D1::ColorF(0.0f, 0.0f, 0.0f), DWRITE_TEXT_ALIGNMENT alignment = DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_CENTER, DWRITE_PARAGRAPH_ALIGNMENT p_alignment = DWRITE_PARAGRAPH_ALIGNMENT::DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+	bool OutputTextSmall(const wchar_t* text, D2D1_RECT_F targetArea, D2D1_COLOR_F color = D2D1::ColorF(0.0f, 0.0f, 0.0f), DWRITE_TEXT_ALIGNMENT alignment = DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT p_alignment = DWRITE_PARAGRAPH_ALIGNMENT::DWRITE_PARAGRAPH_ALIGNMENT_NEAR, bool useRenderTarget = false);
 
 	unsigned long GetMaxBitmapSize()
 	{
@@ -45,4 +56,8 @@ public:
 	ID2D1HwndRenderTarget* GetRenderTarget() { return m_RenderTarget; }
 	ID2D1BitmapRenderTarget* GetCompatibleTarget() { return pCompatibleTarget; }
 	ID2D1Factory* GetFactory() { return m_Factory; }
+
+	float GetOutputTextWidth(const wchar_t* string, D2D1_SIZE_F maxsize, bool bFormalSmall = false);
+	float GetOutputTextHeight(const wchar_t* string, D2D1_SIZE_F maxsize, bool bFormatSmall = false);
+	float GetOutputTextWidthSmall(const wchar_t* string, D2D1_SIZE_F maxsize);
 };
