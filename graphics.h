@@ -1,7 +1,7 @@
 #pragma once
 
 #include<Windows.h>
-#include<d2d1.h>
+#include<d2d1_1.h>
 #include<dwrite.h>
 #pragma comment(lib, "dwrite.lib")
 #pragma comment(lib, "windowscodecs.lib")
